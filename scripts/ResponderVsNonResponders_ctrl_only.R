@@ -10,14 +10,18 @@ dir.create(outdir)
 graphdir <- here("graphs", "ResponderVsNonResponders_crl_only")
 dir.create(graphdir)
 
+# Import libraries
+library(data.table)
+library(tidyverse)
+library(ggplot2)
+
 # Import data
 load(here("data", "gene_grch38.rda"))
 # ganno: gene annotation table
 # gcnt == txi.gene$counts
 
 # Subset only jejunum data
-library(data.table)
-library(tidyverse)
+
 gcnt <- as.data.table(gcnt)
 jSamples <- grep(x = names(gcnt), pattern = "_J_", value = T)
 gcntJ <- gcnt[, ..jSamples]
@@ -28,11 +32,25 @@ gvst <- DESeq2::varianceStabilizingTransformation(round(gcntJ))
 
 # Plot PCA
 pcData <- prcomp(gvst)
-library(ggplot2)
 ggplot(data = as.data.frame(pcData$rotation), aes(x=PC1, y=PC2)) +
   geom_point()
 
 # hclust
 distData <- dist(t(gvst))
+hData <- hclust(distData)
+plot(hData)
+
+### Subset only pre-treatment and repeat
+gvstPlacebo <- grepl(pattern = "_P_", x = colnames(gvst)) %>%
+  gvst[,.]
+
+# PCA
+pcData <- prcomp(gvstPlacebo, center = T, scale. = F)
+plot(pcData)
+ggplot(data = as.data.frame(pcData$rotation), aes(x=PC1, y=PC2)) +
+  geom_point()
+
+# hclust
+distData <- dist(t(gvstPlacebo))
 hData <- hclust(distData)
 plot(hData)
