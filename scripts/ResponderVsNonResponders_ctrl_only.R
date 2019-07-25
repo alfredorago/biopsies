@@ -4,14 +4,14 @@
 # Optional: DEseq responders vs non-responders based on ctrl data only
 
 # Set local paths
-here <- here::here()
-outdir <- file.path(here, "output", "ResponderVsNonResponders_crl_only")
+library(here)
+outdir <- here("output", "ResponderVsNonResponders_crl_only")
 dir.create(outdir)
-graphdir <- file.path(here, "graphs", "ResponderVsNonResponders_crl_only")
+graphdir <- here("graphs", "ResponderVsNonResponders_crl_only")
 dir.create(graphdir)
 
 # Import data
-load(file.path(here, "data", "gene_grch38.rda"))
+load(here("data", "gene_grch38.rda"))
 # ganno: gene annotation table
 # gcnt == txi.gene$counts
 
