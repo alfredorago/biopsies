@@ -14,43 +14,43 @@ dir.create(graphdir)
 library(data.table)
 library(tidyverse)
 library(ggplot2)
+library(drake)
 
 # Import data
-load(here("data", "gene_grch38.rda"))
+function(x) load(here("data", "gene_grch38.rda"))
 # ganno: gene annotation table
 # gcnt == txi.gene$counts
 
-# Subset only jejunum data
+# # Subset only jejunum data
+# gcnt <- as.data.table(gcnt)
+# jSamples <- grep(x = names(gcnt), pattern = "_J_", value = T)
+# gcntJ <- gcnt[, ..jSamples]
 
-gcnt <- as.data.table(gcnt)
-jSamples <- grep(x = names(gcnt), pattern = "_J_", value = T)
-gcntJ <- gcnt[, ..jSamples]
+#### try using DESEQ to correct fold changes (from Yun)
+gcnt.vst <- DESeq2::varianceStabilizingTransformation(round(gcnt))
+gvst.df <- melt(gcnt.vst)
+gvst.df$lib <- str_replace(gvst.df$Var2, "_(L|P).*", "")
+gvst.df$cond <- str_replace_all(str_extract(gvst.df$Var2, "_(L|P)_"), "_", "")
 
-# Use variance stabilizing transformation on count data
-gcntJ <- as.matrix(round(gcntJ))
-gvst <- DESeq2::varianceStabilizingTransformation(round(gcntJ))
+fcvst.df <- reshape::cast(gvst.df, Var1+lib~cond, value="value")
 
-# Plot PCA
-pcData <- prcomp(gvst)
-ggplot(data = as.data.frame(pcData$rotation), aes(x=PC1, y=PC2)) +
-  geom_point()
+fcvst.df$Lcnt <- 2^fcvst.df$L
+fcvst.df$Pcnt <- 2^fcvst.df$P
+fcvst.df$log2abd <- log2(rowSums(fcvst.df[, c("Lcnt", "Pcnt")]))
+fcvst.df$log2fc <- fcvst.df$L- fcvst.df$P
 
-# hclust
-distData <- dist(t(gvst))
-hData <- hclust(distData)
-plot(hData)
+fcvst.df$part <- str_replace(fcvst.df$lib, ".*_", "")
 
-### Subset only pre-treatment and repeat
-gvstPlacebo <- grepl(pattern = "_P_", x = colnames(gvst)) %>%
-  gvst[,.]
+qbase <- ggplot(data=fcvst.df)
+qhex <- geom_hex(aes( x=log2abd, y=log2fc),
+                 binwidth=c((range(fcfinal.df$log2abd)[2] -  range(fcfinal.df$log2abd)[1] )/250,
+                            (range(fcfinal.df$log2fc)[2] -  range(fcfinal.df$log2fc)[1] )/250))
 
-# PCA
-pcData <- prcomp(gvstPlacebo, center = T, scale. = F)
-plot(pcData)
-ggplot(data = as.data.frame(pcData$rotation), aes(x=PC1, y=PC2)) +
-  geom_point()
+## using 2^1.4 FC as a cutoff for subpopulational studies
+finaldiff <- subset(fcvst.df, abs(log2fc)>=1.4)
+finalfc <- fcvst.df[chr(fcvst.df$X1) %in% chr(finaldiff$X1), ]
+finalfc <- cast(finalfc, X1~lib, value="log2fc")
+finalfc <- col2rowname(finalfc)
+finalfc.t  <- t(data.frame(finalfc))
 
-# hclust
-distData <- dist(t(gvstPlacebo))
-hData <- hclust(distData)
-plot(hData)
+save(finaldiff, finalfc, finalfc.t, file="fc_subpopulation_log2fc1_4.rda")
