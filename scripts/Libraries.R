@@ -4,3 +4,10 @@ library(data.table)
 library(tidyverse)
 library(ggplot2)
 library(stringr)
+
+## Utility functions with human-readable names
+
+rows2cols = function(x, column) {
+  tibble::remove_rownames(.data = x) %>%
+    tibble::column_to_rownames(.data = ., var = column)
+}

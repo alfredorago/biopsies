@@ -1,7 +1,9 @@
 ### Plan
 
 plan = drake_plan(
-  gcnt.vst = DESeq2::varianceStabilizingTransformation(round(gcnt)),
+  gcnt.vst = gcnt[,grepl(pattern = "_J_", x = colnames(gcnt))] %>%
+    round(.) %>%
+    DESeq2::varianceStabilizingTransformation(.),
   gvst.df = reshape::melt(gcnt.vst) %>% 
     mutate(.,
            lib = str_replace(X2, "_(L|P).*", ""),
@@ -18,7 +20,8 @@ plan = drake_plan(
   # removing intermediate data.frame finaldiff, which is the filtered version of fcvst.df only
   finalfc = filter(fcvst.df, abs(log2fc) >= 1.4) %>%
     reshape::cast(., X1~lib, value="log2fc") %>%
-    tibble::remove_rownames(.) %>%
-    tibble::column_to_rownames("X1"),
-  finalfc.t  = t(data.frame(finalfc))
+    rows2cols(.,"X1"),
+  finalfc.t  = t(data.frame(finalfc)),
+  totalfc = reshape::cast(fcvst.df, X1~lib, value="log2fc") %>%
+    rows2cols("X1")
 )
