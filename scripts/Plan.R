@@ -14,5 +14,11 @@ plan = drake_plan(
            log2abd = log2(Lcnt + Pcnt),
            log2fc = L - P,
            part = str_replace(lib, ".*_", "")
-    )
+    ),
+  # removing intermediate data.frame finaldiff, which is the filtered version of fcvst.df only
+  finalfc = filter(fcvst.df, abs(log2fc) >= 1.4) %>%
+    reshape::cast(., X1~lib, value="log2fc") %>%
+    tibble::remove_rownames(.) %>%
+    tibble::column_to_rownames("X1"),
+  finalfc.t  = t(data.frame(finalfc))
 )
