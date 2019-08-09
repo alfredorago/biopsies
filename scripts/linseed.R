@@ -1,12 +1,12 @@
 ### linSeed workflow
 library(drake)
 library(linseed)
-library(here)
-pdf(file = here("./graphs/linseed.pdf"))
+
+pdf(file = "./graphs/linseed.pdf")
 
 # Load data and remove samples with missing data
 
-gcnt <- readd(finalGcnt)
+gcnt <- readd(gcnt.vst)
 gcnt <- gcnt[,-grep(x = colnames(gcnt), pattern = 'R18_J|R4_J')]
 
 # Initialize linseed object
@@ -53,7 +53,7 @@ lo$tsnePlot()
 
 # Stop plotting and save workspace
 dev.off()
-save.image(file = here("./output/linseed.Rdata"))
+save.image(file = "./output/linseed.Rdata")
 
 # Save cell proportions per sample
 cellProportions <- lo$proportions
