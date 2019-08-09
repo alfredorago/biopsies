@@ -9,6 +9,7 @@ plan = drake_plan(
            lib = str_replace(X2, "_(L|P).*", ""),
            cond = str_replace_all(str_extract(X2, "_(L|P)_"), "_", "")
     ),
+  finalGcnt = gcnt.vst[which(row.names(readd(gcnt.vst))%in%row.names(readd(finalfc))),],
   fcvst.df = reshape::cast(gvst.df, X1+lib~cond, value="value") %>% 
     mutate(.,
            Lcnt = 2^L,
