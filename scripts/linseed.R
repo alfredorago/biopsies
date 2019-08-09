@@ -1,7 +1,8 @@
 ### linSeed workflow
 library(drake)
 library(linseed)
-library(magrittr)
+library(here)
+pdf(file = here("graphs/linseed.pdf"))
 
 # Load data and remove samples with missing data
 
@@ -49,3 +50,6 @@ plotProportions(lo$proportions)
 #
 lo$selectGenes(100)
 lo$tsnePlot()
+
+dev.off()
+save.image(file = here("output/linseed.Rdata"))
