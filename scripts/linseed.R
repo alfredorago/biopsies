@@ -2,7 +2,7 @@
 library(drake)
 library(linseed)
 library(here)
-pdf(file = here("./graphs/linseed.pdf"))
+pdf(file = "./graphs/linseed.pdf")
 
 # Load data and remove samples with missing data
 
@@ -60,4 +60,4 @@ cellProportions <- lo$proportions
 markers <- lo$markers
 
 saveRDS(cellProportions, file = "./output/linseedProportions")
-saveRDS(markers, file = here("./output/linseedMarkers"))
+saveRDS(markers, file = "./output/linseedMarkers")
