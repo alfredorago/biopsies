@@ -54,5 +54,5 @@ lo$tsnePlot()
 cellProportions <- lo$proportions
 markers <- lo$markers
 
-saveRDS(cellProportions, file = "../output/linseedProportions")
-saveRDS(markers, file = here("../output/linseedMarkers"))
+save(cellProportions, file = "./output/linseedProportions.RData")
+save(markers, file = here("./output/linseedMarkers.RData"))
