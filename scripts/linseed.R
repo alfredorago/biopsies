@@ -28,7 +28,7 @@ varVector <- svd(lo$exp$filtered$norm)$d^2
 cumsum(varVector/sum(varVector))
 
 # Set cell number
-lo$setCellTypeNumber(7)
+lo$setCellTypeNumber(6)
 
 
 #
