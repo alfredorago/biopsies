@@ -1,6 +1,9 @@
 ### Plan
 
 plan = drake_plan(
+  
+  ## File preprocessing
+  
   gcnt.vst = gcnt[,grepl(pattern = "_J_", x = colnames(gcnt))] %>%
     round(.) %>%
     DESeq2::varianceStabilizingTransformation(.),
@@ -19,6 +22,7 @@ plan = drake_plan(
            part = str_replace(lib, ".*_", "")
     ),
   # removing intermediate data.frame finaldiff, which is the filtered version of fcvst.df only
+  # creates tables with fold change differences
   finalfc = filter(fcvst.df, abs(log2fc) >= 1.4) %>%
     reshape::cast(., X1~lib, value="log2fc") %>%
     rows2cols(.,"X1"),

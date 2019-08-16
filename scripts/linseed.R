@@ -60,4 +60,4 @@ cellProportions <- lo$proportions
 markers <- lo$markers
 
 save(cellProportions, file = "./output/linseedProportions.RData")
-save(markers, file = here("./output/linseedMarkers.RData"))
+save(markers, file = "./output/linseedMarkers.RData")
