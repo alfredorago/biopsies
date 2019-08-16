@@ -2,8 +2,8 @@
 library(here)
 library(data.table)
 library(tidyverse)
-library(ggplot2)
-library(stringr)
+library(dtangle)
+library(biomaRt)
 
 ## Utility functions with human-readable names
 

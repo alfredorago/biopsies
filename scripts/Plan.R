@@ -28,5 +28,32 @@ plan = drake_plan(
     rows2cols(.,"X1"),
   finalfc.t  = t(data.frame(finalfc)),
   totalfc = reshape::cast(fcvst.df, X1~lib, value="log2fc") %>%
-    rows2cols("X1")
+    rows2cols("X1"),
+  
+  # dtangle workflow
+  # specify which genes are markers for tissues of interest (after Smillie 2019)
+  markerNames.coarse = list(epithelial = c("EPCAM", "KRT8", "KRT18"),
+                            stromal = c("COL1A1", "COL1A2", "COL6A1", "COL6A2", "VWF", "PLVAP", "CDH5", "S100B"),
+                            immune = c("CD52", "CD2", "CD3D", "CD3G", "CD3E", "CD79A", "CD79B", "CD14", "CD16", "CD68", "CD83", "CSF1R", "FCER1G")
+  ),
+  markerTable.coarse = lapply(markerNames.coarse, function(x){
+    getBM(attributes = list("external_gene_name", "ensembl_gene_id", "ensembl_gene_id_version"), 
+          filters = "external_gene_name", 
+          values = x,
+          mart = useEnsembl(biomart = 'ensembl', dataset = 'hsapiens_gene_ensembl'))
+  }),
+ markerIDs.coarse = map(.x = markerTable.coarse, .f = function(x){x[,"ensembl_gene_id_version"]}), 
+ markerPos.coarse = map(.x = markerIDs.coarse, .f = function(x){
+   which(rownames(gcnt.vst)%in%x)
+ }),
+ # Using mock set of reference samples sampled at random from main dataset
+ references.coarse = gcnt.vst[,sample(1:ncol(gcnt.vst), length(markerPos.coarse))] %>% 
+   t(.),
+ 
+ # Run dtangle
+ dtOut.coarse = dtangle(Y=t(gcnt.vst), 
+                        references = references.coarse, 
+                        markers = markerPos.coarse, 
+                        data_type = 'rna-seq')
+ 
 )
