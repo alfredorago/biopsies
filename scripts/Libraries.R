@@ -4,6 +4,7 @@ library(data.table)
 library(tidyverse)
 library(dtangle)
 library(biomaRt)
+library(readxl)
 
 ## Utility functions with human-readable names
 

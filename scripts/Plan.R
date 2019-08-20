@@ -59,7 +59,36 @@ plan = drake_plan(
  # Import cell metadata from smillie dataset
  smillie.meta = read_tsv(file = "./Downloads/smillie/all.meta2.txt", 
                      col_types = 'cfnnffff', skip = 2, 
-                     col_names = c("NAME", "Cluster", "nGene", "nUMI", "Subject", "Health", "Location", "Sample"))
+                     col_names = c("NAME", "Cluster", "nGene", "nUMI", "Subject", "Health", "Location", "Sample")),
  
- 
-)
+ # Import and then subset marker gene set from Smillie
+ xlPath = here("Downloads/smillie/SM/1-s2.0-S0092867419307329-mmc2.xlsx"),
+# file_in(xlPath),
+
+# file_out(here("./output/SmillieMarkers.csv")),
+ markers = excel_sheets(path = xlPath) %>%
+   set_names(.) %>%
+   .[1:3] %>%
+   map_dfr(.x = ., .f = ~ read_excel(path = xlPath, sheet = .x, col_types = c(
+     ident = "text",
+     gene = "text",
+     coefD	= "numeric",
+     pvalD	= "numeric",	
+     padjD	= "numeric",
+     coefC	= "numeric",
+     pvalC	= "numeric",
+     padjC	= "numeric",
+     mastfc = "numeric",
+     alpha	= "numeric",
+     ref_alpha	= "numeric",
+     mu	= "numeric",
+     ref_mu	= "numeric",
+     mean	= "numeric",
+     ref_mean	= "numeric",
+     log2fc	= "numeric",
+     spec_h = "logical",
+     spec_d = "logical"
+   )))  %>%
+   write_csv(., path = here("./output/SmillieMarkers.csv"))
+
+ )
