@@ -54,6 +54,12 @@ plan = drake_plan(
  dtOut.coarse = dtangle(Y=t(gcnt.vst), 
                         references = references.coarse, 
                         markers = markerPos.coarse, 
-                        data_type = 'rna-seq')
+                        data_type = 'rna-seq'),
+ 
+ # Import cell metadata from smillie dataset
+ smillie.meta = read_tsv(file = "./Downloads/smillie/all.meta2.txt", 
+                     col_types = 'cfnnffff', skip = 2, 
+                     col_names = c("NAME", "Cluster", "nGene", "nUMI", "Subject", "Health", "Location", "Sample"))
+ 
  
 )
