@@ -31,37 +31,7 @@ plan = drake_plan(
     rows2cols("X1"),
   
   # dtangle workflow
-  # specify which genes are markers for tissues of interest (after Smillie 2019)
-  markerNames.coarse = list(epithelial = c("EPCAM", "KRT8", "KRT18"),
-                            stromal = c("COL1A1", "COL1A2", "COL6A1", "COL6A2", "VWF", "PLVAP", "CDH5", "S100B"),
-                            immune = c("CD52", "CD2", "CD3D", "CD3G", "CD3E", "CD79A", "CD79B", "CD14", "CD16", "CD68", "CD83", "CSF1R", "FCER1G")
-  ),
-  markerTable.coarse = lapply(markerNames.coarse, function(x){
-    getBM(attributes = list("external_gene_name", "ensembl_gene_id", "ensembl_gene_id_version"), 
-          filters = "external_gene_name", 
-          values = x,
-          mart = useEnsembl(biomart = 'ensembl', dataset = 'hsapiens_gene_ensembl'))
-  }),
- markerIDs.coarse = map(.x = markerTable.coarse, .f = function(x){x[,"ensembl_gene_id_version"]}), 
- markerPos.coarse = map(.x = markerIDs.coarse, .f = function(x){
-   which(rownames(gcnt.vst)%in%x)
- }),
- # Using mock set of reference samples sampled at random from main dataset
- references.coarse = gcnt.vst[,sample(1:ncol(gcnt.vst), length(markerPos.coarse))] %>% 
-   t(.),
- 
- # Run dtangle
- dtOut.coarse = dtangle(Y=t(gcnt.vst), 
-                        references = references.coarse, 
-                        markers = markerPos.coarse, 
-                        data_type = 'rna-seq'),
- 
- # Import cell metadata from smillie dataset
- smillie.meta = read_tsv(file = "./Downloads/smillie/all.meta2.txt", 
-                     col_types = 'cfnnffff', skip = 2, 
-                     col_names = c("NAME", "Cluster", "nGene", "nUMI", "Subject", "Health", "Location", "Sample")),
- 
- # Import and then subset marker gene set from Smillie
+# Import and then subset marker gene set from Smillie
  xlPath = here("Downloads/smillie/SM/1-s2.0-S0092867419307329-mmc2.xlsx"),
 # file_in(xlPath),
 
@@ -88,7 +58,34 @@ plan = drake_plan(
      log2fc	= "numeric",
      spec_h = "logical",
      spec_d = "logical"
-   )))  %>%
-   write_csv(., path = here("./output/SmillieMarkers.csv"))
+   )))  %>% 
+  group_by(ident) %>%
+  write_csv(., path = here("./output/SmillieMarkers.csv")),
 
- )
+markers.filtered = filter(.data = markers, spec_h == TRUE),
+
+markerIDs.fine = group_map(.tbl = markers, .f = ~ pull(.x, "gene")) %>% 
+  set_names(., nm = group_keys(.tbl = markers)[, 1, drop=T]
+  ),
+
+# Import reference single-cell expression profiles
+
+## Create lookup table for gene symbols
+# Get lookup table for gene synonyms,
+aliasSymbol = dbGetQuery(conn = org.Hs.eg_dbconn(), 
+                          statement = 'SELECT * FROM alias, gene_info WHERE alias._id == gene_info._id;'
+                          ),
+# Get list of gene symbol names and aliases for all genes in the single cell dataset
+geneSymbols.full = unique(c(aliasSymbol[which(aliasSymbol$symbol%in%rownames(smiUmiSel)),"symbol"],
+                             rownames(smiUmiSel))),
+# query for ENSEMBL IDs
+ensemblIDs = getBM(attributes = list("external_gene_name", "ensembl_gene_id", "ensembl_gene_id_version"), 
+                    filters = "external_gene_name", 
+                    values = geneSymbols.full,
+                    mart = useEnsembl(biomart = 'ensembl', dataset = 'hsapiens_gene_ensembl')),
+# Rename gene IDs in expression table, and convert to matrix
+singleCellData = matrix(smiUmiSel, 
+                        dimnames = list(
+                          ensemblIDs[match(row.names(smiUmiSel), ensemblIDs$external_gene_name), "ensembl_gene_id"],
+                          colnames(smiUmiSel))) %>%
+                          t(.)
