@@ -84,8 +84,13 @@ ensemblIDs = getBM(attributes = list("external_gene_name", "ensembl_gene_id", "e
                     values = geneSymbols.full,
                     mart = useEnsembl(biomart = 'ensembl', dataset = 'hsapiens_gene_ensembl')),
 # Rename gene IDs in expression table, and convert to matrix
-singleCellData = matrix(smiUmiSel, 
-                        dimnames = list(
-                          ensemblIDs[match(row.names(smiUmiSel), ensemblIDs$external_gene_name), "ensembl_gene_id"],
-                          colnames(smiUmiSel))) %>%
-                          t(.)
+singleCellIndexes = list(
+  ensemblIDs[match(rownames(smiUmiSel), ensemblIDs$external_gene_name),"ensembl_gene_id"],
+  colnames(smiUmiSel) 
+),
+singleCellEnsembl = matrix(smiUmiSel, nrow = nrow(smiUmiSel), dimnames = singleCellIndexes)
+
+# Run dTangle using singleCellEnsembl as reference
+
+
+)
