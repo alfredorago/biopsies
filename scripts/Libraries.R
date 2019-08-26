@@ -5,6 +5,8 @@ library(tidyverse)
 library(dtangle)
 library(biomaRt)
 library(readxl)
+library(org.Hs.eg.db)
+library(DBI)
 
 ## Utility functions with human-readable names
 
