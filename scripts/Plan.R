@@ -90,8 +90,12 @@ singleCellIndexes = list(
 ),
 singleCellEnsembl = matrix(smiUmiSel, nrow = nrow(smiUmiSel), dimnames = singleCellIndexes),
 
+# Remove diseased cells
+singleCellEnsembl.healty = 
+  singleCellEnsembl[, which(colnames(singleCellEnsembl)%in%smi50meta[which(smi50meta$Health=="Healthy"), "NAME"])],
+
 # Merge experiment and reference datasets using ensembl IDs 
-exprAndReference = merge(x = gcnt.vst, y = singleCellEnsembl, 
+exprAndReference = merge(x = gcnt.vst, y = singleCellEnsembl.healty, 
                          by = 0, sort = F,
                          all.x = F, all.y = F, 
                          suffixes = c("_test", "_refs")) %>%
@@ -107,7 +111,7 @@ pureSamples = lapply(refCellTypes,
   lapply(., FUN = function(x){match(x, colnames(exprAndReference))})
 
 # # Run dTangle using singleCellEnsembl as reference
-# dtangle(Y = t(exprAndReference), pure_samples = )
+# dtangle(Y = t(exprAndReference), pure_samples = pureSamples, data_type = 'rna-seq')
 # 
 
 )
