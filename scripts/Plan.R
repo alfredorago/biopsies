@@ -85,12 +85,29 @@ ensemblIDs = getBM(attributes = list("external_gene_name", "ensembl_gene_id", "e
                     mart = useEnsembl(biomart = 'ensembl', dataset = 'hsapiens_gene_ensembl')),
 # Rename gene IDs in expression table, and convert to matrix
 singleCellIndexes = list(
-  ensemblIDs[match(rownames(smiUmiSel), ensemblIDs$external_gene_name),"ensembl_gene_id"],
+  ensemblIDs[match(rownames(smiUmiSel), ensemblIDs$external_gene_name),"ensembl_gene_id_version"],
   colnames(smiUmiSel) 
 ),
-singleCellEnsembl = matrix(smiUmiSel, nrow = nrow(smiUmiSel), dimnames = singleCellIndexes)
+singleCellEnsembl = matrix(smiUmiSel, nrow = nrow(smiUmiSel), dimnames = singleCellIndexes),
 
-# Run dTangle using singleCellEnsembl as reference
+# Merge experiment and reference datasets using ensembl IDs 
+exprAndReference = merge(x = gcnt.vst, y = singleCellEnsembl, 
+                         by = 0, sort = F,
+                         all.x = F, all.y = F, 
+                         suffixes = c("_test", "_refs")) %>%
+  as.matrix(.) %>% 
+  col2rowname(.),
 
+# Create list of pure samples
+#create list of names per cell types, then convert to indices using match
+refCellTypes = unique(smi50meta$Cluster),
+pureSamples = lapply(refCellTypes, 
+                     FUN = function(x){smi50meta$NAME[which(smi50meta$Cluster==x)]}) %>%
+  set_names(., refCellTypes) %>%
+  lapply(., FUN = function(x){match(x, colnames(exprAndReference))})
+
+# # Run dTangle using singleCellEnsembl as reference
+# dtangle(Y = t(exprAndReference), pure_samples = )
+# 
 
 )
