@@ -65,10 +65,14 @@ plan = drake_plan(
   pureSamples = lapply(refCellTypes, 
                        FUN = function(x){smiCellTypes$id[which(smiCellTypes$cell_type==x)]}) %>%
     set_names(., refCellTypes) %>%
-    lapply(., FUN = function(x){match(x, colnames(exprAndReference))})
+    lapply(., FUN = function(x){match(x, colnames(exprAndReference))}),
   
-  # # Run dTangle using singleCellEnsembl as reference
-  # dtangle(Y = t(exprAndReference), pure_samples = pureSamples, data_type = 'rna-seq')
-  # 
+  # Run dTangle using singleCellEnsembl as reference
+  dtangle_results = dtangle(
+    Y = t(exprAndReference), 
+    pure_samples = pureSamples[names(markerPos)],
+    markers = markerPos,
+    data_type = 'rna-seq')
+
   
 )
