@@ -7,6 +7,7 @@ library(biomaRt)
 library(readxl)
 library(org.Hs.eg.db)
 library(DBI)
+library(magrittr)
 
 ## Utility functions with human-readable names
 
