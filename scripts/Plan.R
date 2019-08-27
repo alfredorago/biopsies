@@ -19,25 +19,31 @@ plan = drake_plan(
                            statement = 'SELECT * FROM alias, gene_info WHERE alias._id == gene_info._id;'
   ),
   
+  
   # Get list of gene symbol names and aliases for all genes in the single cell dataset
   # Necessary because several of the symbols are aliases and we need their real names too
-  geneSymbols.full = unique(c(aliasSymbol[which(aliasSymbol$symbol%in%rownames(smiLogCpmCorrected)),"symbol"],
-                              rownames(smiLogCpmCorrected))),
+  geneSymbols.full = 
+    unique(c(aliasSymbol[which(aliasSymbol$symbol%in%rownames(smiLogCpmCorrected)),"symbol"],
+                              rownames(smiLogCpmCorrected))) %>%
+    checkGeneSymbols(.) %>%
+    .$Suggested.Symbol,
+  
   # query for ENSEMBL IDs
-  ensemblIDs = getBM(attributes = list("external_gene_name", "ensembl_gene_id", "ensembl_gene_id_version"), 
-                     filters = "external_gene_name", 
+  ensemblIDs = getBM(attributes = list("external_gene_name", "ensembl_gene_id", "ensembl_gene_id_version", 'hgnc_symbol'), 
+                     filters = "hgnc_symbol", 
                      values = geneSymbols.full,
                      mart = useEnsembl(biomart = 'ensembl', dataset = 'hsapiens_gene_ensembl')),
-  
-  
   
   ## dtangle workflow
   # Import reference single-cell expression profiles
   # Rename gene IDs in expression table, and convert to matrix
   singleCellEnsembl =   
-    ensemblIDs[match(rownames(smiLogCpmCorrected), ensemblIDs$external_gene_name),"ensembl_gene_id_version"] %>%
-    mutate(smiLogCpmCorrected, ensemblID = .) %>%
-    na.exclude(.) %>% # Remove columns that have no corresponding ENSEMBL ID
+    checkGeneSymbols(rownames(smiLogCpmCorrected))[,"Suggested.Symbol"] %>% # losing 187 genes
+    match(x = ., table = ensemblIDs$hgnc_symbol) %>%
+    ensemblIDs[.,'hgnc_symbol'] %>%
+    mutate(smiLogCpmCorrected, ensemblID = .)  %>%
+    na.exclude(.) %>% # Remove genes that have no corresponding ENSEMBL ID
+    .[-which(duplicated(.$"ensemblID")),] %>% # Remove genes that have more than one ENSEMBL ID
     remove_rownames(.) %>%
     column_to_rownames(., var = "ensemblID"),
   
@@ -55,9 +61,7 @@ plan = drake_plan(
       match(., ensemblIDs$external_gene_name) %>%
       ensemblIDs[. ,"ensembl_gene_id_version"] %>%
       match(., rownames(exprAndReference))
-  }) %>%
-    discard(., ~ all(is.na(.x))) %>%
-    map(., ~ .x[-which(is.na(.x))]),
+  }),
   
   # Create list of pure samples
   # Create list of names per cell types, then convert to indices using match
@@ -73,6 +77,8 @@ plan = drake_plan(
     pure_samples = pureSamples[names(markerPos)],
     markers = markerPos,
     data_type = 'rna-seq')
-
+  
+  
   
 )
+

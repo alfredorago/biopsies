@@ -8,6 +8,7 @@ library(readxl)
 library(org.Hs.eg.db)
 library(DBI)
 library(magrittr)
+library(HGNChelper)
 
 ## Utility functions with human-readable names
 
