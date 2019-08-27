@@ -36,11 +36,11 @@ plan = drake_plan(
   
   ## dtangle workflow
   # Import reference single-cell expression profiles
-  # Rename gene IDs in expression table, and convert to matrix
+  # Convert gene symbols to ensembl IDs (must first update to current HGNC names)
   singleCellEnsembl =   
     checkGeneSymbols(rownames(smiLogCpmCorrected))[,"Suggested.Symbol"] %>% # losing 187 genes
     match(x = ., table = ensemblIDs$hgnc_symbol) %>%
-    ensemblIDs[.,'hgnc_symbol'] %>%
+    ensemblIDs[.,'ensembl_gene_id_version'] %>%
     mutate(smiLogCpmCorrected, ensemblID = .)  %>%
     na.exclude(.) %>% # Remove genes that have no corresponding ENSEMBL ID
     .[-which(duplicated(.$"ensemblID")),] %>% # Remove genes that have more than one ENSEMBL ID
