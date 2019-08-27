@@ -32,14 +32,6 @@ plan = drake_plan(
   
   
   ## dtangle workflow
-  # Import markers from Cristoph's reanalysis of Smillie dataset, convert to Ensembl IDs and map in dataset
-  
-  markerIDsEnsembl = map(smillieFinalUntangledGeneList, function(x){
-    names(x) %>%
-      ensemblIDs[match(.,ensemblIDs$external_gene_name),"ensembl_gene_id_version"] %>%
-      match(., colnames(exprAndReference))
-  }),
-  
   # Import reference single-cell expression profiles
   # Rename gene IDs in expression table, and convert to matrix
   singleCellEnsembl =   
@@ -57,11 +49,19 @@ plan = drake_plan(
     as.matrix(.) %>% 
     col2rowname(.),
   
+  # Import markers from Cristoph's reanalysis of Smillie dataset, convert to Ensembl IDs and map in dataset
+  markerPos = map(smillieFinalUntangledGeneList, function(x){
+    names(x) %>%
+      match(., ensemblIDs$external_gene_name) %>%
+      ensemblIDs[. ,"ensembl_gene_id_version"] %>%
+      match(., rownames(exprAndReference))
+  }),
+  
   # Create list of pure samples
-  #create list of names per cell types, then convert to indices using match
+  # Create list of names per cell types, then convert to indices using match
   refCellTypes = unique(smiCellTypes$cell_type),
   pureSamples = lapply(refCellTypes, 
-                       FUN = function(x){smiCellTypes$NAME[which(smiCellTypes$Cluster==x)]}) %>%
+                       FUN = function(x){smiCellTypes$id[which(smiCellTypes$cell_type==x)]}) %>%
     set_names(., refCellTypes) %>%
     lapply(., FUN = function(x){match(x, colnames(exprAndReference))})
   
