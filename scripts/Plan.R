@@ -3,10 +3,12 @@
 plan = drake_plan(
   
   ## Import and stamilize gene expression from experiment
-  # Create varance stabilized gene count table
+  # Create varance stabilized gene count table, filtered only to J samples
   gcnt.vst = gcnt[,grepl(pattern = "_J_", x = colnames(gcnt))] %>%
     round(.) %>%
-    DESeq2::varianceStabilizingTransformation(.),
+    DESeq2::varianceStabilizingTransformation(.) %>%
+    set_rownames(str_extract(rownames(.), pattern = "^[^.]*")),
+  
   gvst.df = reshape::melt(gcnt.vst) %>% 
     mutate(.,
            lib = str_replace(X2, "_(L|P).*", ""),
@@ -28,8 +30,8 @@ plan = drake_plan(
     checkGeneSymbols(.) %>%
     .$Suggested.Symbol,
   
-  # query for ENSEMBL IDs
-  ensemblIDs = getBM(attributes = list("external_gene_name", "ensembl_gene_id", "ensembl_gene_id_version", 'hgnc_symbol'), 
+  # Create lookup table between HGNC symbols and ensembl IDs (without version numbers)
+  ensemblIDs = getBM(attributes = list("ensembl_gene_id", 'hgnc_symbol'), 
                      filters = "hgnc_symbol", 
                      values = geneSymbols.full,
                      mart = useEnsembl(biomart = 'ensembl', dataset = 'hsapiens_gene_ensembl')),
@@ -40,7 +42,7 @@ plan = drake_plan(
   singleCellEnsembl =   
     checkGeneSymbols(rownames(smiLogCpmCorrected))[,"Suggested.Symbol"] %>% # losing 187 genes
     match(x = ., table = ensemblIDs$hgnc_symbol) %>%
-    ensemblIDs[.,'ensembl_gene_id_version'] %>%
+    ensemblIDs[.,'ensembl_gene_id'] %>%
     mutate(smiLogCpmCorrected, ensemblID = .)  %>%
     na.exclude(.) %>% # Remove genes that have no corresponding ENSEMBL ID
     .[-which(duplicated(.$"ensemblID")),] %>% # Remove genes that have more than one ENSEMBL ID
@@ -55,11 +57,20 @@ plan = drake_plan(
     as.matrix(.) %>% 
     col2rowname(.),
   
+  # Check which smillie genes are missing from our dataset
+  missingGenes = 
+    rownames(singleCellEnsembl)%in%rownames(gcnt.vst) %>%
+    not(.) %>%
+    which(.) %>%
+    rownames(singleCellEnsembl)[.],
+  
   # Import markers from Cristoph's reanalysis of Smillie dataset, convert to Ensembl IDs and map in dataset
   markerPos = map(smillieFinalUntangledGeneList, function(x){
-    names(x) %>%
-      match(., ensemblIDs$external_gene_name) %>%
-      ensemblIDs[. ,"ensembl_gene_id_version"] %>%
+    names(x)  %>%
+      checkGeneSymbols(.)  %>% 
+      pull(.data = ., var = "Suggested.Symbol") %>%
+      match(., ensemblIDs$hgnc_symbol) %>%
+      ensemblIDs[. ,"ensembl_gene_id"] %>%
       match(., rownames(exprAndReference))
   }),
   
@@ -74,11 +85,9 @@ plan = drake_plan(
   # Run dTangle using singleCellEnsembl as reference
   dtangle_results = dtangle(
     Y = t(exprAndReference), 
-    pure_samples = pureSamples[names(markerPos)],
+    pure_samples = pureSamples,
     markers = markerPos,
     data_type = 'rna-seq')
-  
-  
   
 )
 
