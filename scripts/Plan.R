@@ -55,7 +55,9 @@ plan = drake_plan(
       match(., ensemblIDs$external_gene_name) %>%
       ensemblIDs[. ,"ensembl_gene_id_version"] %>%
       match(., rownames(exprAndReference))
-  }),
+  }) %>%
+    discard(., ~ all(is.na(.x))) %>%
+    map(., ~ .x[-which(is.na(.x))]),
   
   # Create list of pure samples
   # Create list of names per cell types, then convert to indices using match
