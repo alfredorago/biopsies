@@ -89,7 +89,13 @@ plan = drake_plan(
     Y = t(exprAndReference), 
     pure_samples = pureSamples,
     markers = markerPos,
-    data_type = 'rna-seq')
+    data_type = 'rna-seq'),
+  
+  cellProportions = 
+    as.data.frame(dtangle_results$estimates) %>% 
+    rownames_to_column(., var = "sampleID") %>%
+    filter(., grepl('_J_', sampleID)) %>%
+    gather(., key = 'cellType', value = 'proportion', -sampleID)
   
 )
 
