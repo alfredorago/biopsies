@@ -65,7 +65,7 @@ plan = drake_plan(
     rownames(singleCellEnsembl)[.],
   
   # Import markers from Cristoph's reanalysis of Smillie dataset, convert to Ensembl IDs and map in dataset
-  markerPos = map(smillieFinalUntangledGeneList, function(x){
+  markerPosNAs = map(smillieFinalUntangledGeneList, function(x){
     names(x)  %>%
       checkGeneSymbols(.)  %>% 
       pull(.data = ., var = "Suggested.Symbol") %>%
@@ -73,6 +73,8 @@ plan = drake_plan(
       ensemblIDs[. ,"ensembl_gene_id"] %>%
       match(., rownames(exprAndReference))
   }),
+  
+  markerPos = map(markerPosNAs, ~ na.exclude(.x)),
   
   # Create list of pure samples
   # Create list of names per cell types, then convert to indices using match
