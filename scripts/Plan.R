@@ -119,7 +119,10 @@ plan = drake_plan(
            Treatment = str_extract(string = Treatment, pattern = "^[A,P]") %>%
              str_replace(., "A", "L") %>%
              as.factor(.)) %>%
-    set_colnames(., c('subj', 'respond', 'week', 'cond'))
+    set_colnames(., c('subj', 'respond', 'week', 'cond')),
+  
+  metaProps = 
+    merge(metadata, tidyProps)
 
 )
 
