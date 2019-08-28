@@ -95,7 +95,31 @@ plan = drake_plan(
     as.data.frame(dtangle_results$estimates) %>% 
     rownames_to_column(., var = "sampleID") %>%
     filter(., grepl('_J_', sampleID)) %>%
-    gather(., key = 'cellType', value = 'proportion', -sampleID)
+    gather(., key = 'cellType', value = 'proportion', -sampleID),
   
+  tidyProps = 
+    mutate(cellProportions,
+           subj = str_extract(sampleID, pattern = "[0-9]{1,2}") %>%
+             as.factor(),
+           cond = str_replace_all(str_extract(sampleID, "_(L|P)_"), "_", "") %>%
+             factor(levels = c('P', 'L')),
+           week = str_extract(sampleID, pattern = "W[:digit:]") %>%
+             factor()
+    ),
+  
+  metadata = 
+    read_tsv(file = here("Downloads/Clinical_characteristics_Herlevstudy.txt")) %>%
+    dplyr::select(., contains("Screening"), contains("Treatment"), contains("Group")) %>%
+    gather(., key = "Visit", value = "Treatment", ... = contains("Treatment")) %>%
+    mutate(., 
+           Group = as.factor(Group_from_PCA),
+           Visit = str_extract(string = Visit, pattern = "[0-9]") %>% 
+             paste0("W", .) %>% 
+             as.factor(.),
+           Treatment = str_extract(string = Treatment, pattern = "^[A,P]") %>%
+             str_replace(., "A", "L") %>%
+             as.factor(.)) %>%
+    set_colnames(., c('subj', 'respond', 'week', 'cond'))
+
 )
 
