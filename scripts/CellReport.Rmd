@@ -144,8 +144,8 @@ general_responses <- summarise(metaProps_parallel,
                                ci.prop.min = wilcox.test(P, L, conf.int = T, paired = T)$conf.int[1],
                                ci.prop.max = wilcox.test(P, L, conf.int = T, paired = T)$conf.int[2]
 )
-general_responses$p.prop <- pmin(general_responses$p.prop * nrow(general_responses), 1)
-table(general_responses$p.prop < 0.05)
+general_responses$q.prop <- p.adjust(general_responses$p.prop, method = "fdr")
+table(general_responses$q.prop < 0.05)
 ```
 
 ## Check for differences in placebo cell composition
@@ -161,7 +161,7 @@ placeboProps <- select(metaProps, -"week", -"sampleID") %>%
 placeboPvals <- summarise(placeboProps, 
                           p.val = wilcox.test(Group1, Group2)$p.value
 ) %>% 
-  mutate(., padj.val = p.val*nrow(.) %>% min(., 1))
+  mutate(., padj.val = p.adjust(p = p.val, method = "fdr"))
 
 table(placeboPvals$padj.val < 0.05)
 
@@ -170,8 +170,8 @@ table(placeboPvals$padj.val < 0.05)
 
 ## Check differences in LGG cell composition
 
-LGG responder samples have different proportions of glia, immature enterocytes and WNT5B cells compared to LGG non-responders.
-The latter two are borderline significant, and in all cases the effect size is very small.
+LGG responder samples are identical to LGG non-responders in cell composition.
+Glial cells are the most significant ones, with a 0.4 p.adj.
 
 ```{r placebo_proportions}
 lggProps <- select(metaProps, -"week", -"sampleID") %>%
@@ -186,7 +186,7 @@ lggPvals <- summarise(lggProps,
                       CV.hi = wilcox.test(Group1, Group2, conf.int = T)$conf.int[2] %>%
                         divide_by(., mean(mean(Group1, na.rm = T) + mean(Group2, na.rm = T)))
 ) %>% 
-  mutate(., padj.val = p.val*nrow(.) %>% min(., 1))
+  mutate(., padj.val = p.adjust(p.val, method = "fdr"))
 
 filter(lggPvals, padj.val < 0.05)
 ```
@@ -195,7 +195,8 @@ filter(lggPvals, padj.val < 0.05)
 ## Delta version of paired test: focus on relative change
 
 Analyze only differences between treatment and control (controls for different baselines).
-Cell type composition is not significantly different between the two groups
+Cell type composition is not significantly different between the two groups. 
+Enteroendocrine cells are the most significant (qval = 0.1)
 
 ```{R delta_tests}
 deltaProps <- select(metaProps, -"week", -"sampleID") %>%
@@ -216,9 +217,9 @@ deltaResponse <- summarise(deltaPropsParallel,
                                ci.prop.max = wilcox.test(Group1, Group2, paired = F, conf.int = T)$conf.int[2]
 )
 
-deltaResponse$p.prop <- pmin(deltaResponse$p.prop * nrow(deltaResponse), 1)
+deltaResponse$q.prop <- p.adjust(deltaResponse$p.prop, method = "fdr")
 
-filter(deltaResponse, p.prop < 0.05)
+filter(deltaResponse, q.prop < 0.05)
 ```
 
 
@@ -226,7 +227,7 @@ filter(deltaResponse, p.prop < 0.05)
 
 No overall pattern, although we can separate our responders using a combination of PC1 (low) and PC2 (low). This indicates that the response in group 1 is characterized by an increase in goblet cells and monocytes, and a decrease in stem and follicular cells.
 In contrast, group 2 and outliers are scattered around the origin: this indicates no consistent change in cell composition.
-
+Note that none of these changes is picked up by cell-by-cell testing, possibly because of low power.
 ```{R PCA_deltas}
 deltaPropsWide <- deltaProps[,c("cellType", "subj", "delta", "respond")] %>%
   spread(., cellType, delta) %>%
@@ -247,12 +248,5 @@ ggbiplot(deltaPCA,
          choices = c(1,3),
          groups = deltaPropsWide$respond,
          ellipse = T)
-
-# as.data.frame(deltaPCA$rotation) %>%
-#   rownames_to_column(., var = "subj") %>%
-#   merge(., unique(metaProps[,c("subj", "respond")])) %>%
-#   ggplot(., aes(x = PC1, y = PC3, label = subj, col = respond)) +
-#   geom_point() + 
-#   geom_label_repel()
 
 ```
