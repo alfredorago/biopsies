@@ -7,12 +7,12 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(ggbiplot)
 library(drake)
 library(tidyverse)
 library(here)
 library(ggrepel)
 library(magrittr)
-library(ggbiplot)
 ```
 
 ## Preliminary data loading and re-formatting
@@ -52,6 +52,8 @@ ggplot(cellPropRaw, mapping = aes(x = Proportion, col = grepl("_L_", rowname))) 
 
 ```
 
+There is a clear mean/variance relationship, which is expected in proportion data.
+
 
 ```{r variace_checks}
 propVariance <- group_by(cellPropRaw, ID) %>%
@@ -88,6 +90,13 @@ ggplot(data = metaProps, aes(x = cond, y = proportion, group = subj, col = respo
   facet_wrap(.~cellType)
 ```
 
+```{r boxplots}
+ggplot(data = metaProps, aes(x = cond, y = proportion, group = respond, col = respond)) +
+  geom_boxplot(position = 'dodge') +
+  facet_wrap(.~cellType)
+
+```
+
 ## Pseudo-MA plot
 
 Immature goblet cells show a clear enrichment in LGG samples
@@ -95,10 +104,11 @@ Immature goblet cells show a clear enrichment in LGG samples
 ```{r MAPlot, echo=FALSE}
 set_colnames(cellPropRaw, c("sampleID", "cellType", "proportion")) %>%
   mutate(.,
-           subj = str_extract(sampleID, pattern = "[0-9]{1,2}") %>%
-             as.factor(),
-           cond = str_replace_all(str_extract(sampleID, "_(L|P)_"), "_", "") %>%
-             factor(levels = c('P', 'L'))
+         subj = str_extract(sampleID, pattern = "[0-9]{1,2}") %>%
+           as.factor(),
+         cond = str_replace_all(str_extract(sampleID, "_(L|P)_"), "_", "") %>%
+           factor(levels = c('P', 'L')),
+         cellType = as.factor(cellType)
   ) %>%
   select(., -"sampleID") %>%
   spread(., cond, proportion) %>%
@@ -106,8 +116,8 @@ set_colnames(cellPropRaw, c("sampleID", "cellType", "proportion")) %>%
     A = log2(L/P),
     M = (P+L)/2
   ) %>%
-  group_by(., cellType) %>%
-  summarise(
+  group_by(cellType) %>%
+  dplyr::summarise(
     P = mean(P),
     L = mean(L),
     A = mean(A),
