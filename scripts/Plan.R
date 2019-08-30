@@ -92,15 +92,21 @@ plan = drake_plan(
     Y = t(exprAndReference), 
     pure_samples = pureSamples,
     markers = markerPos,
+    summary_fn = median,
     data_type = 'rna-seq'),
-
+  
+  cellPropRaw = 
+    dtangle_results$estimates %>%
+    as.data.frame(.) %>%
+    rownames_to_column() %>%
+    gather(-1 ,key = 'ID', value = 'Proportion') %>%
+    filter(., grepl("_J_", rowname)),
+  
   cellProportions = 
-    apply(X = dtangle_results$estimates, MARGIN = 2, FUN = 
-            function(x) scale(x, center = F, scale = T)) %>%
+    dtangle_results$estimates[which(grepl('_J_', rownames(dtangle_results$estimates))), ] %>%
+    scale(., scale = T, center = T) %>%
     as.data.frame(.) %>% 
-    set_rownames(., value = row.names(dtangle_results$estimates)) %>%
     rownames_to_column(., var = "sampleID") %>%
-    filter(., grepl('_J_', sampleID)) %>%
     gather(., key = 'cellType', value = 'proportion', -sampleID),
   
   tidyProps = 
@@ -118,7 +124,6 @@ plan = drake_plan(
     dplyr::select(., contains("Screening"), contains("Treatment"), contains("Group")) %>%
     gather(., key = "Visit", value = "Treatment", ... = contains("Treatment")) %>%
     mutate(., 
-           Group = as.factor(Group_from_PCA),
            Visit = str_extract(string = Visit, pattern = "[0-9]") %>% 
              paste0("W", .) %>% 
              as.factor(.),
