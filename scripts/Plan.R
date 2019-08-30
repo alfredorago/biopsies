@@ -3,11 +3,14 @@
 plan = drake_plan(
   
   ## Import and stamilize gene expression from experiment
-  # Create varance stabilized gene count table, filtered only to J samples
-  gcnt.vst = gcnt[,grepl(pattern = "_J_", x = colnames(gcnt))] %>%
+  # Filter only J samples, remove un-analyzed individuals and remove version from gene IDs
+  gcnt.J = gcnt[,grepl(pattern = "_J_", x = colnames(gcnt))] %>%
     round(.) %>%
-    DESeq2::varianceStabilizingTransformation(.) %>%
-    set_rownames(str_extract(rownames(.), pattern = "^[^.]*")),
+    set_rownames(str_extract(rownames(.), pattern = "^[^.]*")) %>%
+    .[, !grepl(pattern =  c("R4|R18"), x = colnames(.))],
+  
+  gcnt.vst = gcnt.J %>%
+    DESeq2::varianceStabilizingTransformation(.),
   
   gvst.df = reshape::melt(gcnt.vst) %>% 
     mutate(.,
