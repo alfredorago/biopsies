@@ -92,16 +92,19 @@ filter(metaProps, respond != "Outlier") %>%
          # Replace whitespaces with newlines if they are preceeded and followed by long words
          cellType =  str_replace(cellType, "(?<=.{4,20}) (?=.{4,})", "\n"),
          # Placebo before LGG
-         cond = factor(cond, levels = c("P", "L"))
+         cond = factor(cond, levels = c("P", "L")),
+         # Rename groups as in paper
+         respond = factor(respond, levels = c("Group1", "Group2"), labels = c("LGG Responders", "LGG Non-Responders"))
            ) %>%  
   ggplot(data = ., aes(x = cond, y = proportion, group = subj, col = respond)) +
-  geom_line(aes(alpha=0.6)) +
-  scale_color_brewer(type = "qual", name = "Responder\nGroup") + 
+  geom_line(alpha=0.6) +
+  scale_color_brewer(type = "qual", name = "Subject Group") + 
   facet_wrap(.~cellType) +
   theme_minimal() +
   scale_y_continuous(name = "Normalized Proportion") +
   scale_x_discrete(name = "") +
   theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(),
+        legend.position = c(0.8, 0.05),
         text = element_text(family = "serif", size = 12))
 
 ggsave(filename = here("graphs/interactionPlot.pdf"),
