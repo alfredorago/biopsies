@@ -68,6 +68,13 @@ plan = drake_plan(
     rownames(singleCellEnsembl)[.],
   
   # Import markers from Cristoph's reanalysis of Smillie dataset, convert to Ensembl IDs and map in dataset
+  # Save marker table
+  markerTable = map(smillieFinalUntangledGeneList, names) %>% 
+    stri_list2matrix(byrow = T) %>% 
+    set_rownames(names(smillieFinalUntangledGeneList)) %>%
+    as.data.frame(.) %T>%
+    write.csv(., file = file_out(here("output/CellMarkers.csv")), row.names = T, na = ""),
+  
   markerPosNAs = map(smillieFinalUntangledGeneList, function(x){
     names(x)  %>%
       checkGeneSymbols(.)  %>% 

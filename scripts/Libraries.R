@@ -2,6 +2,7 @@
 library(here)
 library(data.table)
 library(tidyverse)
+library(stringi)
 library(dtangle)
 library(biomaRt)
 library(readxl)
