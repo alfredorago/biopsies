@@ -2,12 +2,13 @@
 
 plan = drake_plan(
   
-  ## Import and stamilize gene expression from experiment
+  ## Import and stabilize gene expression from experiment
   # Filter only J samples, remove un-analyzed individuals and remove version from gene IDs
   gcnt.J = gcnt[,grepl(pattern = "_J_", x = colnames(gcnt))] %>%
     round(.) %>%
-    set_rownames(str_extract(rownames(.), pattern = "^[^.]*")) %>%
-    .[, !grepl(pattern =  c("R4|R18"), x = colnames(.))],
+    .[, !grepl(pattern =  c("R4|R18"), x = colnames(.))] %T>%
+    write.csv(., file = file_out(here("output/GeneCountsJejunum.csv")), row.names = T, col.names = T) %>%
+    set_rownames(str_extract(rownames(.), pattern = "^[^.]*")),
   
   gcnt.vst = gcnt.J %>%
     DESeq2::varianceStabilizingTransformation(.),
