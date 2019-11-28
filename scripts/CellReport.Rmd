@@ -1,0 +1,283 @@
+---
+title: "Cell Composition Report"
+author: "Alfredo Rago"
+date: "8/13/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggbiplot)
+library(drake)
+library(tidyverse)
+library(here)
+library(ggrepel)
+library(magrittr)
+```
+
+## Preliminary data loading and re-formatting
+
+
+```{r data_load}
+# Normalized, annotated cell proportions from dtangle
+loadd(tidyProps)
+# Proportions annotaded with responder/non-responder groups
+loadd(metaProps)
+# Raw cell proportions from dtangle
+loadd(cellPropRaw)
+
+```
+
+## Diagnostic plots
+
+Checking what is the overall proportion of different cell types. Almost half of all cells are DC2 monocytes. This seems odd and could be indicative of issues with the markers.
+
+```{r cellComposition, echo=FALSE}
+group_by(cellPropRaw, ID) %>%
+  summarize(., propMedian = median(Proportion)) %>%
+  mutate(., cellType = fct_reorder(ID, -propMedian)) %>%
+  ggplot(., aes(x = cellType, y = propMedian)) + 
+  geom_col() +
+  coord_flip()
+```
+
+Distribution within and between treatments are almost identical
+
+```{r distribution, echo=FALSE}
+
+ggplot(cellPropRaw, mapping = aes(x = Proportion, col = grepl("_L_", rowname))) +
+  geom_density(alpha = 0.3) +
+  facet_wrap(.~ID) +
+  scale_x_log10()
+
+```
+
+There is a clear mean/variance relationship, which is expected in proportion data.
+
+
+```{r variace_checks}
+propVariance <- group_by(cellPropRaw, ID) %>%
+  summarize(., 
+            variance = var(Proportion),
+            meanProp = mean(Proportion)
+  ) %>%
+  mutate(
+    ID = factor(ID, ID[order(variance, decreasing = T)])
+  )
+
+ggplot(propVariance, aes(x = meanProp, y = variance, label = ID)) +
+  geom_point() +
+  geom_text_repel() +
+  scale_y_log10() +
+  scale_x_log10()
+```
+
+## Reaction norm plots
+
+Visually check if any cell populations increase/decrease between sample and treatment across paired samples.
+
+```{r reaction_norms_general, echo=FALSE}
+ ggplot(data = tidyProps, aes(x = cond, y = proportion, group = subj)) +
+  geom_line(aes(alpha=0.3)) +
+  facet_wrap(.~cellType)
+```
+
+Now separated according to responder type
+
+```{r reaction_norms_groups, echo=FALSE}
+filter(metaProps, respond != "Outlier") %>% 
+  mutate(., 
+         # Replace whitespaces with newlines if they are preceeded and followed by long words
+         cellType =  str_replace(cellType, "(?<=.{4,20}) (?=.{4,})", "\n"),
+         # Placebo before LGG
+         cond = factor(cond, levels = c("P", "L")),
+         # Rename groups as in paper
+         respond = factor(respond, levels = c("Group1", "Group2"), labels = c("LGG Responders", "LGG Non-Responders"))
+           ) %>%  
+  ggplot(data = ., aes(x = cond, y = proportion, group = subj, col = respond)) +
+  geom_line(alpha=0.6) +
+  scale_color_brewer(type = "qual", name = "Subject Group") + 
+  facet_wrap(.~cellType) +
+  theme_minimal() +
+  scale_y_continuous(name = "Normalized Proportion") +
+  scale_x_discrete(name = "") +
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(),
+        legend.position = c(0.8, 0.05),
+        text = element_text(family = "serif", size = 16))
+
+ggsave(filename = here("graphs/interactionPlot.pdf"),
+      units = "mm", width = 297, height = 210)
+
+ggsave(filename = here("graphs/interactionPlot.png"),
+      units = "mm", width = 297, height = 210, dpi = 300)
+```
+
+And as a boxplot 
+
+```{r boxplots}
+ggplot(data = metaProps, aes(x = cond, y = proportion, group = respond, col = respond)) +
+  geom_boxplot(position = 'dodge') +
+  facet_wrap(.~cellType)
+
+```
+
+## Pseudo-MA plot
+
+Immature goblet cells show a clear enrichment in LGG samples, so do WNT2 and CD4 but those have extremely low mean values.
+
+```{r MAPlot, echo=FALSE}
+set_colnames(cellPropRaw, c("sampleID", "cellType", "proportion")) %>%
+  mutate(.,
+         subj = str_extract(sampleID, pattern = "[0-9]{1,2}") %>%
+           as.factor(),
+         cond = str_replace_all(str_extract(sampleID, "_(L|P)_"), "_", "") %>%
+           factor(levels = c('P', 'L')),
+         cellType = as.factor(cellType)
+  ) %>%
+  select(., -"sampleID") %>%
+  spread(., cond, proportion) %>%
+  mutate(
+    A = log2(L/P),
+    M = (P+L)/2
+  ) %>%
+  group_by(cellType) %>%
+  dplyr::summarise(
+    P = mean(P),
+    L = mean(L),
+    A = mean(A),
+    M = mean(M)
+  ) %>%
+  ggplot(., aes(x = M, y = A, label = cellType)) + 
+  geom_point() + 
+  scale_x_log10() +
+  geom_label_repel()
+  
+```
+
+## Statistical testing
+
+Check if the cell type proportions change between placebo and LGG samples.
+They do not.
+
+```{r test}
+metaProps_parallel <- select(metaProps, subj, cond, cellType, proportion) %>%
+  spread(., 'cond', 'proportion') %>%
+  group_by(., cellType)
+
+general_responses <- summarise(metaProps_parallel, 
+                               p.prop = wilcox.test(P, L, paired = T)$p.value,
+                               ci.prop.min = wilcox.test(P, L, conf.int = T, paired = T)$conf.int[1],
+                               ci.prop.max = wilcox.test(P, L, conf.int = T, paired = T)$conf.int[2]
+)
+general_responses$q.prop <- p.adjust(general_responses$p.prop, method = "fdr")
+
+arrange(general_responses, q.prop)[1:5,]
+```
+
+## Check for differences in placebo cell composition
+
+All the placebo samples have the same cell proportions for each type.
+This means the biopsies of either group are similar.
+
+```{r placebo_proportions}
+placeboProps <- select(metaProps, -"week", -"sampleID") %>%
+  filter(., cond == "P") %>%
+  spread(., respond, proportion) %>%
+  group_by(., cellType)
+
+placeboPvals <- summarise(placeboProps, 
+                          p.val = wilcox.test(Group1, Group2)$p.value
+) %>% 
+  mutate(., padj.val = p.adjust(p = p.val, method = "fdr"))
+
+arrange(placeboPvals, padj.val)
+```
+
+## Check differences in LGG cell composition
+
+LGG responder samples are identical to LGG non-responders in cell composition.
+Glial cells are the most significant ones, with a 0.4 p.adj.
+This means the changes in gene expression between responder and non-responder groups cannot be explained by changes in cell composition.
+
+```{r LGG_proportions}
+lggProps <- select(metaProps, -"week", -"sampleID") %>%
+  filter(., cond == "L") %>%
+  spread(., respond, proportion) %>%
+  group_by(., cellType)
+
+lggPvals <- summarise(lggProps, 
+                      p.prop = wilcox.test(Group1, Group2)$p.value,
+                      CV.lo = wilcox.test(Group1, Group2, conf.int = T)$conf.int[1] %>%
+                        divide_by(., mean(mean(Group1, na.rm = T) + mean(Group2, na.rm = T))),
+                      CV.hi = wilcox.test(Group1, Group2, conf.int = T)$conf.int[2] %>%
+                        divide_by(., mean(mean(Group1, na.rm = T) + mean(Group2, na.rm = T)))
+) %>% 
+  mutate(., q.prop = p.adjust(p.prop, method = "fdr"))
+
+arrange(lggPvals, q.prop)[1:5,]
+```
+
+
+## Delta version of paired test: focus on relative change
+
+Analyze only differences between treatment and control (controls for different baselines).
+Cell type composition is not significantly different between the two groups. 
+Enteroendocrine cells are the most significant (qval = 0.1)
+This means the differences between placebo and control groups cannot be explained by changes in cell composition.
+
+```{R delta_tests}
+deltaProps <- select(metaProps, -"week", -"sampleID") %>%
+  spread(., cond, proportion) %>%
+  mutate(
+    delta = P-L,
+    M = (P+L)/2
+  ) %>%
+  group_by(., cellType)
+
+deltaPropsParallel = select(deltaProps, "subj", "cellType", "delta", "respond") %>%
+  spread(., respond, delta) %>%
+  group_by(., cellType)
+
+deltaResponse <- summarise(deltaPropsParallel, 
+                               p.prop = wilcox.test(Group1, Group2, paired = F)$p.value,
+                               ci.prop.min = wilcox.test(Group1, Group2, paired = F, conf.int = T)$conf.int[1],
+                               ci.prop.max = wilcox.test(Group1, Group2, paired = F, conf.int = T)$conf.int[2]
+)
+
+deltaResponse$q.prop <- p.adjust(deltaResponse$p.prop, method = "fdr")
+
+arrange(deltaResponse, q.prop)[1:5,]
+```
+
+
+## PCA plot to visualize overall changes in composition
+
+No overall pattern, although we can separate our responders using a combination of PC1 (low) and PC2 (low). This indicates that the response in group 1 is characterized by an increase in goblet cells and monocytes, and a decrease in stem and follicular cells.
+In contrast, group 2 and outliers are scattered around the origin: this indicates no consistent change in cell composition.
+Note that none of these changes is picked up by cell-by-cell testing, possibly because of low power.
+We could run tests on the PCs if we suspect that the joint change in several cell types is important.
+
+```{R PCA_deltas}
+deltaPropsWide <- deltaProps[,c("cellType", "subj", "delta", "respond")] %>%
+  spread(., cellType, delta) %>%
+  column_to_rownames(., var = "subj")
+
+deltaPCA <-  deltaPropsWide[, -1] %>%
+  as.matrix(.) %>%
+  prcomp(., center = T, scale. = T)
+
+ggscreeplot(deltaPCA)
+
+ggbiplot(deltaPCA, 
+         choices = c(1,2),
+         groups = deltaPropsWide$respond,
+         ellipse = T)
+
+ggbiplot(deltaPCA, 
+         choices = c(1,3),
+         groups = deltaPropsWide$respond,
+         ellipse = T)
+
+```
